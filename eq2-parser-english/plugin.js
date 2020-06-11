@@ -23,17 +23,19 @@ const tests = [
 
 /**
  * When this plugin is active, this function will be called on each new line received.
- * @param {object} context
- * @param {string} context.line
- * @param {string} context.logFilePath
+ * @param {PluginContext}
+ * @returns {void}
  */
 function plugin(context) {
   tests.forEach(test => {
+    // Fail fast, do a quick string check
     if (!test.quick.some(quick => context.line.includes(quick))) return;
+    // If there's no expression to match against, just process the action
     if (!test.expr) {
       test.action(context);
       return;
     }
+    // Otherwise match against the expression and process the action with the match
     const match = test.expr.exec(context.line);
     if (!match) return;
     test.action({ ...context, match });
@@ -42,8 +44,7 @@ function plugin(context) {
 
 /**
  * Provides a schema that the plugin settings form will use.
- * @param {object} context
- * @param {string} context.logFilePath
+ * @param {PluginContext}
  * @returns {object[]}
  */
 function settingsSchema(context) {
@@ -78,9 +79,8 @@ function settingsSchema(context) {
 
 /**
  * Information about the plugin.
- * @param {object} context
- * @param {string} context.line
- * @param {string} context.logFilePath
+ * @param {PluginContext} context
+ * @returns {PluginManifest}
  */
 function manifest(context) {
   return {
@@ -98,3 +98,18 @@ module = {
   settingsSchema,
   manifest
 };
+
+/**
+ * @typedef PluginContext
+ * @type {object}
+ * @property {string} line - the current line of data being processed by the plugin
+ * @property {string} logFilePath - path to the currently monitored log file
+ */
+
+/**
+ * @typedef PluginManifest
+ * @type {object}
+ * @property {string} id - unique ID that cannot be shared between plugins
+ * @property {string} name - friendly name
+ * @property {string} version - version string
+ */
