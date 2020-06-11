@@ -21,6 +21,12 @@ const tests = [
   }
 ];
 
+/**
+ * When this plugin is active, this function will be called on each new line received.
+ * @param {object} context
+ * @param {string} context.line
+ * @param {string} context.logFilePath
+ */
 function plugin(context) {
   tests.forEach(test => {
     if (!test.quick.some(quick => context.line.includes(quick))) return;
@@ -34,6 +40,12 @@ function plugin(context) {
   });
 }
 
+/**
+ * Provides a schema that the plugin settings form will use.
+ * @param {object} context
+ * @param {string} context.logFilePath
+ * @returns {object[]}
+ */
 function settingsSchema(context) {
   const [, inferredPlayerName] =
     /eq2log_(.+?)\.txt/.exec(context.logFilePath) || [];
@@ -64,6 +76,12 @@ function settingsSchema(context) {
   ];
 }
 
+/**
+ * Information about the plugin.
+ * @param {object} context
+ * @param {string} context.line
+ * @param {string} context.logFilePath
+ */
 function manifest(context) {
   return {
     id: "eq2-parser-english",
@@ -72,6 +90,9 @@ function manifest(context) {
   };
 }
 
+/**
+ * Plugin must export `manifest` and `plugin` at a minimum.
+ */
 module = {
   plugin,
   settingsSchema,
