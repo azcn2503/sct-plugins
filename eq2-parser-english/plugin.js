@@ -57,14 +57,16 @@ function settingsSchema(context) {
       type: "string",
       label: "Character name",
       description: "The name of your character.",
-      defaultValue: playerName
+      defaultValue: playerName,
+      updateOn: ["logFilePath"]
     },
     {
       id: "playerPetName",
       type: "string",
       label: "Pet name",
       description: "The name of your pet, so damage can be attributed to you.",
-      defaultValue: playerName
+      defaultValue: playerName,
+      updateOn: ["logFilePath"]
     },
     {
       id: "encounterTimeout",
@@ -72,7 +74,7 @@ function settingsSchema(context) {
       label: "Encounter timeout (ms)",
       description:
         "The amount of time between the last combat hit being registered and the encounter ending.",
-      defaultValue: "4000"
+      defaultValue: 4000
     }
   ];
 }
