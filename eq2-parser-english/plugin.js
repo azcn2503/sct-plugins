@@ -1,20 +1,25 @@
 let playerName = null;
 
+const timestampExpr = /\(([0-9]+)\)\[[\S]{3} [\S]{3}  ?[0-9]{1,2} [0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2} [0-9]{4}\]/;
+
 const tests = [
-  {
-    quick: ["sct"],
-    expr: /sct/,
-    action: context => {
-      console.log("~ plugin match", context);
-    }
-  },
   {
     quick: ["You stop fighting"],
     action: ({ endEncounter }) => endEncounter()
   },
   {
+    quick: ["You have entered"],
+    expr: new RegExp(`${timestampExpr.source} You have entered (.+?)\\.`),
+    action: ({ match }) => {
+      const [, timestamp, zoneName] = match || [];
+      console.log("~ zoneName", zoneName);
+    }
+  },
+  {
     quick: ["hit", "hits"],
-    expr: /\(([0-9]+)\)\[[\S]{3} [\S]{3} [0-9]{1,2} [0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2} [0-9]{4}\] (YOUR?|[\S]{4,}?)('s)? (.+?)?hits? (.+?) ((for (a (Legendary|Fabled|Mythical)? ?critical of)? ?([0-9]+?) ([a-z]+?) damage)|(but fails to inflict any damage))\./,
+    expr: new RegExp(
+      `${timestampExpr.source} (YOUR?|[\S]{4,}?)('s)? (.+?)?hits? (.+?) ((for (a (Legendary|Fabled|Mythical)? ?critical of)? ?([0-9]+?) ([a-z]+?) damage)|(but fails to inflict any damage))\\.`
+    ),
     action: ({ match, registerDamage, plugin }) => {
       let [
         ,
