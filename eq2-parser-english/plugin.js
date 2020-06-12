@@ -8,7 +8,7 @@ const rules = [
     action: ({ endEncounter }) => endEncounter(),
   },
   {
-    zoneName: true,
+    scanReverse: true,
     quick: ["You have entered"],
     expr: new RegExp(`${timestampExpr.source} You have entered (.+?)\\.`),
     action: ({ match, setZoneName }) => {
@@ -60,7 +60,7 @@ const rules = [
   },
 ];
 
-const zoneNameRule = rules.find(rule => rule.zoneName);
+const scanReverseRules = rules.filter(rule => rule.scanReverse);
 
 function executeRuleWithContext(rule, context) {
   // Fail fast, do a quick string check
@@ -144,8 +144,10 @@ function manifest(context) {
 }
 
 function scanReverse(context) {
-  if (!zoneNameRule) return;
-  executeRuleWithContext(zoneNameRule, context);
+  if (!scanReverseRules) return;
+  scanReverseRules.forEach(rule => {
+    executeRuleWithContext(rule, context);
+  });
 }
 
 /**
