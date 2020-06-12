@@ -2,18 +2,19 @@ let playerName = null;
 
 const timestampExpr = /\(([0-9]+)\)\[[\S]{3} [\S]{3}  ?[0-9]{1,2} [0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2} [0-9]{4}\]/;
 
-const tests = [
+const rules = [
   {
     quick: ["You stop fighting"],
-    action: ({ endEncounter }) => endEncounter()
+    action: ({ endEncounter }) => endEncounter(),
   },
   {
+    zoneName: true,
     quick: ["You have entered"],
     expr: new RegExp(`${timestampExpr.source} You have entered (.+?)\\.`),
-    action: ({ match }) => {
+    action: ({ match, setZoneName }) => {
       const [, timestamp, zoneName] = match || [];
-      console.log("~ zoneName", zoneName);
-    }
+      setZoneName(zoneName);
+    },
   },
   {
     quick: ["hit", "hits"],
@@ -34,7 +35,7 @@ const tests = [
         criticalType, // 9
         amount, // 10
         type, // 11
-        fail // 12
+        fail, // 12
       ] = match || [];
       let pet = false;
       if (sourceName === "YOU" || sourceName === "YOUR") {
@@ -53,11 +54,26 @@ const tests = [
         critical: Boolean(critical),
         criticalType,
         fail: Boolean(fail),
-        pet
+        pet,
       });
-    }
-  }
+    },
+  },
 ];
+
+const zoneNameRule = rules.find(rule => rule.zoneName);
+
+function executeRuleWithContext(rule, context) {
+  // Fail fast, do a quick string check
+  if (!rule.quick.some(quick => context.line.includes(quick))) return;
+  // If there's no expression to match against, just process the action
+  if (!rule.expr) {
+    rule.action(context);
+  }
+  // Otherwise match against the expression and process the action with the match
+  const match = rule.expr.exec(context.line);
+  if (!match) return;
+  rule.action({ ...context, match });
+}
 
 /**
  * When this plugin is active, this function will be called on each new line received.
@@ -65,18 +81,8 @@ const tests = [
  * @returns {void}
  */
 function plugin(context) {
-  tests.forEach(test => {
-    // Fail fast, do a quick string check
-    if (!test.quick.some(quick => context.line.includes(quick))) return;
-    // If there's no expression to match against, just process the action
-    if (!test.expr) {
-      test.action(context);
-      return;
-    }
-    // Otherwise match against the expression and process the action with the match
-    const match = test.expr.exec(context.line);
-    if (!match) return;
-    test.action({ ...context, match });
+  rules.forEach(rule => {
+    executeRuleWithContext(rule, context);
   });
 }
 
@@ -96,7 +102,7 @@ function settingsSchema(context) {
       label: "Character name",
       description: "The name of your character.",
       defaultValue: playerName,
-      updateOn: ["logFilePath"]
+      updateOn: ["logFilePath"],
     },
     {
       id: "playerPetName",
@@ -104,7 +110,7 @@ function settingsSchema(context) {
       label: "Pet name",
       description: "The name of your pet, so damage can be attributed to you.",
       defaultValue: playerName,
-      updateOn: ["logFilePath"]
+      updateOn: ["logFilePath"],
     },
     {
       id: "encounterTimeout",
@@ -112,8 +118,15 @@ function settingsSchema(context) {
       label: "Encounter timeout (ms)",
       description:
         "The amount of time between the last combat hit being registered and the encounter ending.",
-      defaultValue: 4000
-    }
+      defaultValue: 4000,
+    },
+    {
+      id: "zoneName",
+      type: "string",
+      label: "Zone name",
+      description: "The zone name",
+      hidden: true,
+    },
   ];
 }
 
@@ -126,8 +139,13 @@ function manifest(context) {
   return {
     id: "eq2-parser-english",
     name: "EQ2 Parser (English)",
-    version: "0.1.0"
+    version: "0.1.0",
   };
+}
+
+function scanReverse(context) {
+  if (!zoneNameRule) return;
+  executeRuleWithContext(zoneNameRule, context);
 }
 
 /**
@@ -136,7 +154,8 @@ function manifest(context) {
 module = {
   plugin,
   settingsSchema,
-  manifest
+  manifest,
+  scanReverse,
 };
 
 /**
