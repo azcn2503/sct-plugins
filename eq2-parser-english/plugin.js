@@ -9,14 +9,47 @@ const tests = [
     }
   },
   {
+    quick: ["You stop fighting"],
+    action: ({ endEncounter }) => endEncounter()
+  },
+  {
     quick: ["hit", "hits"],
-    expr: /(YOU|YOUR (.+?)) (hits?|multi attack) (.+?) for (a (.+?)?critical of)? ([0-9]+?) ([a-z]+?) damage./,
-    action: ({ match, registerDamage }) => {
-      let [, sourceName, abilityName, , targetName, , , amount, type] = match;
-      if (sourceName === "YOU" && playerName) {
-        sourceName = playerName;
+    expr: /\(([0-9]+)\)\[[\S]{3} [\S]{3} [0-9]{1,2} [0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2} [0-9]{4}\] (YOUR?|[\S]{4,}?)('s)? (.+?)?hits? (.+?) ((for (a (Legendary|Fabled|Mythical)? ?critical of)? ?([0-9]+?) ([a-z]+?) damage)|(but fails to inflict any damage))\./,
+    action: ({ match, registerDamage, plugin }) => {
+      let [
+        ,
+        timestamp, // 1
+        sourceName, // 2 // 3
+        ,
+        abilityName, // 4
+        targetName, // 5
+        damageOrFailString, // 6
+        damageString, // 7
+        critical, // 8
+        criticalType, // 9
+        amount, // 10
+        type, // 11
+        fail // 12
+      ] = match || [];
+      let pet = false;
+      if (sourceName === "YOU" || sourceName === "YOUR") {
+        sourceName = plugin.settings.playerName;
+      } else if (sourceName === plugin.settings.playerPetName) {
+        sourceName = plugin.settings.playerName;
+        pet = true;
       }
-      registerDamage({ sourceName, abilityName, targetName, amount, type });
+      registerDamage({
+        sourceName,
+        abilityName,
+        targetName,
+        amount: fail ? 0 : +amount,
+        type,
+        timestamp,
+        critical: Boolean(critical),
+        criticalType,
+        fail: Boolean(fail),
+        pet
+      });
     }
   }
 ];
