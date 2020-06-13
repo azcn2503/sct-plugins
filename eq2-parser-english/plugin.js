@@ -68,12 +68,12 @@ function executeRuleWithContext(rule, context) {
   if (!rule.quick.some(quick => context.line.includes(quick))) return;
   // If there's no expression to match against, just process the action
   if (!rule.expr) {
-    rule.action(context);
+    return rule.action(context);
   }
   // Otherwise match against the expression and process the action with the match
   const match = rule.expr.exec(context.line);
   if (!match) return;
-  rule.action({ ...context, match });
+  return rule.action({ ...context, match });
 }
 
 /**
