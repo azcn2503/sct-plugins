@@ -1,6 +1,15 @@
 let playerName = null;
 
-const timestampExpr = /\(([0-9]+)\)\[[\S]{3} [\S]{3}  ?[0-9]{1,2} [0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2} [0-9]{4}\]/;
+function playerOrPet(name, plugin) {
+  let resolved = { name: name, pet: false };
+  if (name === "YOU" || name === "YOUR") {
+    resolved.name = plugin.settings.playerName;
+  } else if (name === plugin.settings.playerPetName) {
+    resolved.name = plugin.settings.playerName;
+    resolved.pet = true;
+  }
+  return resolved;
+}
 
 const rules = [
   {
@@ -10,18 +19,38 @@ const rules = [
   {
     scanReverse: true,
     quick: ["You have entered"],
-    expr: new RegExp(`${timestampExpr.source} You have entered (.+?)\\.`),
+    expr: /\(([0-9]+)\)\[[\S]{3} [\S]{3}  ?[0-9]{1,2} [0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2} [0-9]{4}\] You have entered (.+?)\./,
     action: ({ match, setZoneName, setPluginReady }) => {
       const [, timestamp, zoneName] = match || [];
       setZoneName(zoneName);
       setPluginReady();
     }
   },
+
+  // Something hits a player?
+  {
+    quick: ["hits"],
+    expr: /\(([0-9]+)\)\[[\S]{3} [\S]{3}  ?[0-9]{1,2} [0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2} [0-9]{4}\] (.+?)(?:\'s (.+?))? hits (YOU|[A-Za-z]+?) for ([0-9]+?) ([a-z]+?) damage\./,
+    action: ({ match, registerDamage, plugin }) => {
+      let [, timestamp, sourceName, abilityName, targetName, amount, type] =
+        match || [];
+      const { name: resolvedTargetName, pet } = playerOrPet(targetName, plugin);
+      registerDamage({
+        sourceName,
+        abilityName,
+        targetName: resolvedTargetName,
+        type,
+        timestamp,
+        amount,
+        pet
+      });
+    }
+  },
+
+  // You, your pet, or another player hit something
   {
     quick: ["hit", "hits"],
-    expr: new RegExp(
-      `${timestampExpr.source} (YOUR?|[\S]{4,}?)('s)? (.+?)?hits? (.+?) ((for (a (Legendary|Fabled|Mythical)? ?critical of)? ?([0-9]+?) ([a-z]+?) damage)|(but fails to inflict any damage))\\.`
-    ),
+    expr: /\(([0-9]+)\)\[[\S]{3} [\S]{3}  ?[0-9]{1,2} [0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2} [0-9]{4}\] (YOUR?|[\S]{4,}?)('s)? (.+?)?hits? (.+?) ((for (a (Legendary|Fabled|Mythical)? ?critical of)? ?([0-9]+?) ([a-z]+?) damage)|(but fails to inflict any damage))\./,
     action: ({ match, registerDamage, plugin }) => {
       let [
         ,
@@ -38,15 +67,12 @@ const rules = [
         type, // 11
         fail // 12
       ] = match || [];
-      let pet = false;
-      if (sourceName === "YOU" || sourceName === "YOUR") {
-        sourceName = plugin.settings.playerName;
-      } else if (sourceName === plugin.settings.playerPetName) {
-        sourceName = plugin.settings.playerName;
-        pet = true;
-      }
-      registerDamage({
+      const { name: resolvedSourceName, pet: resolvedPet } = playerOrPet(
         sourceName,
+        plugin
+      );
+      registerDamage({
+        sourceName: resolvedSourceName,
         abilityName,
         targetName,
         amount: fail ? 0 : +amount,
@@ -55,7 +81,7 @@ const rules = [
         critical: Boolean(critical),
         criticalType,
         fail: Boolean(fail),
-        pet
+        pet: resolvedPet
       });
     }
   }
