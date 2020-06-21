@@ -1,0 +1,11 @@
+{
+  "name": "sct-plugins",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "git@github.com:azcn2503/sct-plugins.git",
+  "author": "Aaron Cunnington <azcn2503@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "jest": "^26.0.1"
+  }
+}

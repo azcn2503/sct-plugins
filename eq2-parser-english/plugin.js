@@ -13,6 +13,7 @@ function playerOrPet(name, plugin) {
 
 const rules = [
   {
+    testId: "entered-zone",
     scanReverse: true,
     quick: ["You have entered"],
     expr: /\(([0-9]+)\)\[[\S]{3} [\S]{3}  ?[0-9]{1,2} [0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2} [0-9]{4}\] You have entered (.+?)\./,
@@ -25,60 +26,64 @@ const rules = [
 
   // Something hits a player?
   {
+    testId: "player-receives-damage",
     quick: ["hits"],
     expr: /\(([0-9]+)\)\[[\S]{3} [\S]{3}  ?[0-9]{1,2} [0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2} [0-9]{4}\] (.+?)(?:\'s (.+?))? hits (YOU|[A-Za-z]+?) for ([0-9]+?) ([a-z]+?) damage\./,
-    action: ({ match, registerDamage, plugin }) => {
-      let [, timestamp, sourceName, abilityName, targetName, amount, type] =
-        match || [];
-      const { name: resolvedTargetName, pet } = playerOrPet(targetName, plugin);
-      registerDamage({
-        sourceName,
-        abilityName,
-        targetName: resolvedTargetName,
-        type,
-        timestamp,
-        amount,
-        pet
-      });
+    matchSchema: [
+      null,
+      "timestamp",
+      "sourceName",
+      "abilityName",
+      "targetName",
+      "amount",
+      "type"
+    ],
+    action: ({ match, resolved, registerDamage, plugin }) => {
+      const enriched = { ...resolved };
+      const { name: resolvedTargetName, pet } = playerOrPet(
+        enriched.targetName,
+        plugin
+      );
+      enriched.targetName = resolvedTargetName;
+      enriched.amount = +enriched.amount;
+      registerDamage(enriched);
+      return { resolved, enriched };
     }
   },
 
   // You, your pet, or another player hit something
   {
+    testId: "player-deals-damage",
     quick: ["hit", "hits"],
-    expr: /\(([0-9]+)\)\[[\S]{3} [\S]{3}  ?[0-9]{1,2} [0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2} [0-9]{4}\] (YOUR?|[\S]{4,}?)('s)? (.+?)?hits? (.+?) ((for (a (Legendary|Fabled|Mythical)? ?critical of)? ?([0-9]+?) ([a-z]+?) damage)|(but fails to inflict any damage))\./,
-    action: ({ match, registerDamage, plugin }) => {
-      let [
-        ,
-        timestamp, // 1
-        sourceName, // 2 // 3
-        ,
-        abilityName, // 4
-        targetName, // 5
-        damageOrFailString, // 6
-        damageString, // 7
-        critical, // 8
-        criticalType, // 9
-        amount, // 10
-        type, // 11
-        fail // 12
-      ] = match || [];
+    expr: /\(([0-9]+)\)\[[\S]{3} [\S]{3}  ?[0-9]{1,2} [0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2} [0-9]{4}\] (YOUR?|[\S]{4,}?)('s)? (.+?)? ?hits? (.+?) ((for (a (Legendary|Fabled|Mythical)? ?critical of)? ?([0-9]+?) ([a-z]+?) damage)|(but fails to inflict any damage))\./,
+    matchSchema: [
+      null,
+      "timestamp",
+      "sourceName",
+      null,
+      "abilityName",
+      "targetName",
+      "damageOrFailString",
+      "damageString",
+      "critical",
+      "criticalType",
+      "amount",
+      "type",
+      "fail"
+    ],
+    action: ({ resolved, match, registerDamage, plugin }) => {
+      const enriched = { ...resolved };
       const { name: resolvedSourceName, pet: resolvedPet } = playerOrPet(
-        sourceName,
+        enriched.sourceName,
         plugin
       );
-      registerDamage({
-        sourceName: resolvedSourceName,
-        abilityName,
-        targetName,
-        amount: fail ? 0 : +amount,
-        type,
-        timestamp,
-        critical: Boolean(critical),
-        criticalType,
-        fail: Boolean(fail),
-        pet: resolvedPet
-      });
+      enriched.sourceName = resolvedSourceName;
+      enriched.amount = enriched.fail ? 0 : +enriched.amount;
+      enriched.critical = Boolean(enriched.critical);
+      enriched.fail = Boolean(enriched.fail);
+      enriched.pet = resolvedPet;
+      registerDamage(enriched);
+      return { resolved, enriched };
     }
   }
 ];
@@ -95,7 +100,14 @@ function executeRuleWithContext(rule, context) {
   // Otherwise match against the expression and process the action with the match
   const match = rule.expr.exec(context.line);
   if (!match) return;
-  return rule.action({ ...context, match });
+  const resolved = {};
+  if (rule.matchSchema) {
+    rule.matchSchema.forEach((key, index) => {
+      if (!key) return;
+      resolved[key] = match[index];
+    });
+  }
+  return rule.action({ ...context, match, resolved });
 }
 
 /**
@@ -180,12 +192,14 @@ function init(context) {
 /**
  * Plugin must export `manifest` and `plugin` at a minimum.
  */
-module = {
+module.exports = {
   plugin,
   settingsSchema,
   manifest,
   scanReverse,
-  init
+  init,
+  rules,
+  executeRuleWithContext
 };
 
 /**
