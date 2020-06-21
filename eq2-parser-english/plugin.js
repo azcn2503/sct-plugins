@@ -192,7 +192,7 @@ function init(context) {
 /**
  * Plugin must export `manifest` and `plugin` at a minimum.
  */
-module.exports = {
+const toExport = {
   plugin,
   settingsSchema,
   manifest,
@@ -201,6 +201,11 @@ module.exports = {
   rules,
   executeRuleWithContext
 };
+if (module.exports) {
+  module.exports = toExport;
+} else {
+  module = toExport;
+}
 
 /**
  * @typedef PluginContext
