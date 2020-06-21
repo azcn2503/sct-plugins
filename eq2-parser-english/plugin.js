@@ -13,10 +13,6 @@ function playerOrPet(name, plugin) {
 
 const rules = [
   {
-    quick: ["You stop fighting"],
-    action: ({ endEncounter }) => endEncounter()
-  },
-  {
     scanReverse: true,
     quick: ["You have entered"],
     expr: /\(([0-9]+)\)\[[\S]{3} [\S]{3}  ?[0-9]{1,2} [0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2} [0-9]{4}\] You have entered (.+?)\./,
